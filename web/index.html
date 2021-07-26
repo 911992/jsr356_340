@@ -41,7 +41,7 @@ History:
             const E_daemonlog = document.getElementById("_daemonlog");
             function add_log(arg_el, arg_msg) {
                 console.log(arg_msg);
-                arg_el.value = arg_el.value + '\n' + arg_msg;
+                arg_el.value = arg_msg + '\n' + arg_el.value;
             }
             function ws_log(arg_log) {
                 add_log(E_wslog, arg_log);
