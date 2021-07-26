@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+
+<!--<![CDATA[
+
+jsr356_340
+File: index.html
+Created on: Jul 26, 2021 5:00:56 PM
+    @author https://github.com/911992
+ 
+History:
+    initial version: 0.1(20210726)
+
+]]>-->
+
+<html>
+    <head>
+        <title>WebSocket Test</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+        
+        <p><button id="_start_btn" onclick="start_op()"><b>Start</b></button></p>
+        <p>Note: WS is stateless.</p>
+        <p>WS logs(server messages). path: /portal</p>
+        <textarea cols="63" rows="5" id="_wslog">
+            
+        </textarea>
+        <p>Ajax calls responses(every 11 seconds). Not synced with WS, just specifies the last WS message were sent. path: /earing</p>
+        <textarea cols="63" rows="5" id="_ajaxlog">
+            
+        </textarea>
+        <p>Logs</p>
+        <textarea cols="63" rows="5" id="_daemonlog">
+            
+        </textarea>
+        <p>Send message: <input id="_sendmsg" type="text"/> <button onclick="send_ws_msg_ex()">Send</button></p>
+        <script>
+            const E_wslog = document.getElementById("_wslog");
+            const E_ajaxlog = document.getElementById("_ajaxlog");
+            const E_daemonlog = document.getElementById("_daemonlog");
+            function add_log(arg_el, arg_msg) {
+                console.log(arg_msg);
+                arg_el.value = arg_el.value + '\n' + arg_msg;
+            }
+            function ws_log(arg_log) {
+                add_log(E_wslog, arg_log);
+            }
+            function ajax_log(arg_log) {
+                add_log(E_ajaxlog, arg_log);
+            }
+            function debug_log(arg_log) {
+                add_log(E_daemonlog, arg_log);
+            }
+
+            const ws_socket_endpoint_path = "/portal";
+            const working_domain = window.location.hostname + ":" + window.location.port;
+            const ws_socket_path_ssl = "wss://" + working_domain + ws_socket_endpoint_path;
+            const ws_socket_path_plain = "ws://" + working_domain + ws_socket_endpoint_path;
+            const AJAX_CALL_DELAY_TIME_MS = 10159;
+            var ws_socket;
+            function start_op() {
+                if (ws_socket != null) {
+                    debug_log("ERR 001: cannot reopen an existing websocket.(refresh the page)");
+                    return;
+                }
+                open_ws();
+            }
+            function is_ssl() {
+                if (location.protocol == "https:" || location.protocol == "https") {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            function open_ws() {
+                var _url;
+                if (is_ssl() == true) {
+                    _url = ws_socket_path_ssl;
+                } else {
+                    _url = ws_socket_path_plain;
+                }
+                debug_log("Log 002: websocket initializing. Path:" + _url);
+                ws_socket = new WebSocket(_url);
+
+                ws_socket.addEventListener('open', function (/*_arg_event*/) {
+                    debug_log("Log 003: websocket initialized.");
+                    debug_log("Log 008: Ajax call loop starting... delay: " + AJAX_CALL_DELAY_TIME_MS);
+                    call_ajax();
+                });
+
+                ws_socket.addEventListener('message', function (_arg_event) {
+                    ws_log(_arg_event.data);
+                });
+
+                ws_socket.addEventListener('error', function (_arg_event) {
+                    debug_log("ERR 004: websocket error: " + _arg_event.message);
+                });
+
+                ws_socket.addEventListener('error', function (/*_arg_event*/) {
+                    debug_log("LOG 004: websocket closed ");
+                    ws_socket = null;
+                });
+            }
+
+            function send_ws_msg_ex() {
+                var _msg = document.getElementById("_sendmsg").value;
+                if (_msg == "" || _msg == null) {
+                    alert("please sensible stuff");
+                    return;
+                }
+                send_ws_msg(_msg);
+            }
+
+            async function send_ws_msg(arg_msg) {
+                if (ws_socket == null) {
+                    debug_log("ERR 005: cannot send message to ws(closed/null) ");
+                    return;
+                }
+                debug_log("LOG 005: sending message(ws)");
+                try {
+                    ws_socket.send(arg_msg);
+                } catch (wtf) {
+                    debug_log("ERR 006: error while sending ws message ex:" + wtf.message);
+                    return;
+                }
+            }
+
+            const AJAX_CALL_URL = working_domain + "/earing";
+            const AJAX_CALL_URL_SSL = "https://" + working_domain + "/earing";
+            const AJAX_CALL_URL_PLAIN = "http://" + working_domain + "/earing";
+            async function call_ajax() {
+                var _url;
+                if (is_ssl() == true) {
+                    _url = AJAX_CALL_URL_SSL;
+                } else {
+                    _url = AJAX_CALL_URL_PLAIN;
+                }
+                ajax_log("Log 007: ajax(fetch) initializing. Path:" + AJAX_CALL_URL);
+                fetch(_url)
+                    .then(
+                        function (_arg_msg) {
+                            _arg_msg.text().then(function (_arg_data) {
+                                ajax_log("Log 007: ajax resp: " + _arg_data);
+                            });
+
+                        }
+                    ).catch(
+                    function (_arg_wtf) {
+                        debug_log("ERR 007: ajax(fetch) failed. ex:" + _arg_wtf.message);
+                    }
+                );
+                if (ws_socket != null) {
+                    setTimeout(call_ajax, AJAX_CALL_DELAY_TIME_MS);
+                }
+            }
+        </script>
+        <hr/>
+        <hr/>
+        <p>This project were created dedicatedly to FF <a href="https://bugzilla.mozilla.org/show_bug.cgi?id=1719502">[Bug 1719502]</a>, and let's hope it's not FF bug.</p>
+        <b>What is this?</b>
+        <p>
+            Once the start btn is clicked, a websocket session/socket will be created.
+        </p>
+        <p>
+            Server sends random non-sense messages, every x-seconds, and beside the websocket, same messages are available(fetched) by ajax calls(for easier debug)
+        </p>
+        <p>
+            Expecting behavior is simple, websocket should work, that's it.
+        </p>
+        <b>Setup</b>
+        <ul>
+            <li>Server: Window 2019 (latest update), no any specific conf change, all as default. timezone: PST</li>
+            <li>Runtime: Tomcat v9.0.45, OpenJDK 16 (MS build), native IO connector (APR, not AJP). OpenSSL 1.1.1k</li>
+            <li>HTTP port: 17080 , HTTPS port: 17443(valid cert, domain: yorkee.xyz)</li>
+            <li>Context(app): JEE7, Based on low-level JSR-340(no dedicated lib/framework). JSR 356 for websocket. src(repo) could be found <a href="https://github.com/911992/jsr356_340">here</a></li>
+        </ul>
+        <hr/>
+    </body>
+</html>
